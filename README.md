@@ -24,3 +24,7 @@ mojo run -I src examples/cli.mojo --db b.json --id B get doc1
 
 ## Known limits (POC)
 Field values are strings; no schema, queries, or compaction (tombstones/field timestamps grow forever); single-threaded blocking server; IPv4 only; no auth/TLS; HLC high-water is persisted but physical-clock skew is not bounded.
+
+## License
+
+Apache License 2.0. See [LICENSE](LICENSE).

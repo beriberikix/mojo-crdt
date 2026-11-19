@@ -26,3 +26,11 @@ Running log of friction, gaps, and wins. Newest last.
 - **Friction:** every `Optional[Doc]` unwrap and `entry.value` read needs `.copy()` for non-implicitly-copyable structs.
 - **Bug/oddity:** `TestSuite` reports wildly wrong per-test durations (e.g. 49-80 s for a test when the whole run took 1.5 s wall). Timer artifact; ignore the numbers.
 - Design: each state change bumps a local `seq`; replication checkpoints will be the serving replica's seq (HLC order alone can't find merged remote changes).
+
+## M4: Replica + lossy-network simulator + convergence fuzz (`src/replica.mojo`, `src/sim.mojo`, `tests/test_sync.mojo`)
+- **Win:** generics over a trait (`Replica[S: Storage]`, `Cluster[S]`) compose well; the same fuzz function runs against `MemoryStorage` and the Python-backed `TinyStorage` unchanged.
+- **Win:** 40 seeds x 3 replicas x 120 steps with +/-10 s clock skew, 25% loss, duplicates, delays and reordering all converge to the LWW oracle. Mutation check (break LWW compare) is caught by the fuzz and echo tests, so the tests have teeth.
+- **Friction:** a `struct` field of generic trait type needed the trait to include `Deinitable` (error: "field 'store' has non-'Deinitable' type 'S'"); `Movable` alone isn't enough. Not obvious from the error.
+- **Friction:** can't hold `&mut` to two `List` elements at once (aliasing), so replicas exchange owned `Batch` values rather than calling each other; ended up a cleaner design anyway.
+- **Friction:** no ternary-free `String` joins/`split` returns `StringSpan` requiring `String(...)` wrapping; no stdlib RNG used (wrote xorshift for determinism).
+- **Perf note:** TinyDB's whole-file JSON model + Python interop is the slow part of the TinyDB fuzz; memory backend is ~4x faster for the same work (wall time, ignoring the broken test timer).

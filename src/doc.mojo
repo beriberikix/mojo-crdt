@@ -44,10 +44,16 @@ struct Doc(Copyable, Movable):
             return d.value() == "true"
         return False
 
-    def merge(mut self, other: Self):
-        """State-based merge: commutative, associative, idempotent."""
+    def merge(mut self, other: Self) -> Bool:
+        """State-based merge: commutative, associative, idempotent.
+
+        Returns True if any field changed.
+        """
+        var changed = False
         for entry in other.fields.items():
-            _ = self.set(entry.key, entry.value.value, entry.value.ts)
+            if self.set(entry.key, entry.value.value, entry.value.ts):
+                changed = True
+        return changed
 
     def same_state(self, other: Self) -> Bool:
         if len(self.fields) != len(other.fields):

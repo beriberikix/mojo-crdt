@@ -42,9 +42,9 @@ def test_merge_commutes() raises:
     _ = b.set("title", "B", HLC(5, 0, "b"))  # same wall: node breaks tie
     _ = b.set("m", "2", HLC(2, 0, "b"))
     var ab = a.copy()
-    ab.merge(b)
+    _ = ab.merge(b)
     var ba = b.copy()
-    ba.merge(a)
+    _ = ba.merge(a)
     assert_true(ab.same_state(ba))
     assert_equal(ab.get("title").value(), "B")
     assert_equal(ab.get("n").value(), "1")
@@ -56,9 +56,9 @@ def test_merge_idempotent() raises:
     var b = Doc("x")
     _ = a.set("t", "A", HLC(1, 0, "a"))
     _ = b.set("t", "B", HLC(2, 0, "b"))
-    a.merge(b)
+    _ = a.merge(b)
     var once = a.copy()
-    a.merge(b)
+    _ = a.merge(b)
     assert_true(a.same_state(once))
 
 

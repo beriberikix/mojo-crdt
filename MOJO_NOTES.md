@@ -18,3 +18,11 @@ Running log of friction, gaps, and wins. Newest last.
 - **Friction:** non-`ImplicitlyCopyable` structs (anything holding `String`/`Dict`) need explicit `.copy()` everywhere (e.g. `ts.copy()`, `existing.value().ts`); verbose but caught mistakes at compile time.
 - **Friction:** `Doc` needed a hand-written copy constructor because `Dict` isn't implicitly copyable and I wanted `Copyable` for merge tests.
 - Design: field values are `String` for now (typed values deferred); deletion is a normal LWW field `_deleted`, so concurrent delete/edit resolves by timestamp.
+
+## M3: Storage trait + MemoryStorage + TinyStorage (`src/storage.mojo`, `src/tinydb_storage.mojo`)
+- **Win:** a real `trait Storage` with two backends and a generic `check_storage[S: Storage](mut s: S)` test shared by both worked cleanly; static dispatch, no boxing.
+- **Win:** TinyDB persistence round-trips through Python interop (dict/list building with `Python.dict()`, `Python.list(...)`, iteration over `.items()`).
+- **Friction:** `swap(list[j], list[j-1])` is rejected as mutable aliasing even for distinct indices; use `List.swap_elements(i, j)`.
+- **Friction:** every `Optional[Doc]` unwrap and `entry.value` read needs `.copy()` for non-implicitly-copyable structs.
+- **Bug/oddity:** `TestSuite` reports wildly wrong per-test durations (e.g. 49-80 s for a test when the whole run took 1.5 s wall). Timer artifact; ignore the numbers.
+- Design: each state change bumps a local `seq`; replication checkpoints will be the serving replica's seq (HLC order alone can't find merged remote changes).

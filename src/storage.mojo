@@ -28,14 +28,18 @@ trait Storage(Movable, Deinitable):
     def put(mut self, doc: Doc) raises -> Int: ...
     def changes_since(self, seq: Int) raises -> List[Row]: ...
     def last_seq(self) raises -> Int: ...
+    def get_meta(self, key: String) raises -> Optional[String]: ...
+    def set_meta(mut self, key: String, value: String) raises: ...
 
 
 struct MemoryStorage(Storage):
     var docs: Dict[String, Row]
+    var meta: Dict[String, String]
     var seq: Int
 
     def __init__(out self):
         self.docs = Dict[String, Row]()
+        self.meta = Dict[String, String]()
         self.seq = 0
 
     def get(self, id: String) raises -> Optional[Doc]:
@@ -59,3 +63,9 @@ struct MemoryStorage(Storage):
 
     def last_seq(self) raises -> Int:
         return self.seq
+
+    def get_meta(self, key: String) raises -> Optional[String]:
+        return self.meta.get(key)
+
+    def set_meta(mut self, key: String, value: String) raises:
+        self.meta[key] = value

@@ -9,6 +9,7 @@ from storage import Storage, Row, sort_rows
 struct TinyStorage(Storage):
     var db: PythonObject
     var table: PythonObject
+    var meta: PythonObject
     var query: PythonObject
     var seq: Int
 
@@ -21,6 +22,7 @@ struct TinyStorage(Storage):
         else:
             self.db = tinydb.TinyDB(path)
         self.table = self.db.table("docs")
+        self.meta = self.db.table("meta")
         self.query = tinydb.Query()
         self.seq = 0
         for item in self.table.all():
@@ -58,6 +60,18 @@ struct TinyStorage(Storage):
 
     def last_seq(self) raises -> Int:
         return self.seq
+
+    def get_meta(self, key: String) raises -> Optional[String]:
+        var found = self.meta.search(self.query.k == key)
+        if len(found) == 0:
+            return None
+        return String(py=found[0]["v"])
+
+    def set_meta(mut self, key: String, value: String) raises:
+        var rec = Python.dict()
+        rec["k"] = key
+        rec["v"] = value
+        _ = self.meta.upsert(rec, self.query.k == key)
 
     @staticmethod
     def _decode(item: PythonObject) raises -> Doc:

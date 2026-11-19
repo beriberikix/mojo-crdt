@@ -34,3 +34,29 @@ Running log of friction, gaps, and wins. Newest last.
 - **Friction:** can't hold `&mut` to two `List` elements at once (aliasing), so replicas exchange owned `Batch` values rather than calling each other; ended up a cleaner design anyway.
 - **Friction:** no ternary-free `String` joins/`split` returns `StringSpan` requiring `String(...)` wrapping; no stdlib RNG used (wrote xorshift for determinism).
 - **Perf note:** TinyDB's whole-file JSON model + Python interop is the slow part of the TinyDB fuzz; memory backend is ~4x faster for the same work (wall time, ignoring the broken test timer).
+
+## M5: wire format + TCP transport (`src/wire.mojo`, `src/net.mojo`, `src/node.mojo`, `examples/cli.mojo`)
+- **Gap:** no sockets in the Mojo stdlib. `external_call["socket"/"bind"/"connect"/"send"/"recv", ...]` against libc works first try, but I hand-build `sockaddr_in` bytes and hardcode Linux constants (AF_INET, SO_REUSEADDR, MSG_NOSIGNAL). Linux-only as written.
+- **Win:** two separate OS processes synced over real TCP; an offline attempt raises a clean `Error` and a later retry succeeds. Integration test spawns the server via Python `subprocess` (interop is handy for harness work).
+- **Win:** length-prefixed wire format round-trips newlines, `;`/`:` and non-ASCII; truncation raises instead of crashing.
+- **Friction:** pointer API churn: `ptr + n` is deprecated for `unsafe_offset(n)`; passing `List.unsafe_ptr()` straight into `external_call` is fine.
+- **Gap/friction:** no wall-clock helper I could find quickly, so `wall_ms()` calls Python's `time.time_ns()`. Also `argv()` handling is manual.
+- **Design fix found while building:** restarting a process within the same millisecond could reuse an HLC stamp, so the HLC high-water mark is now persisted in storage meta (`load_clock`).
+
+## Verdict (M6)
+**Is Mojo viable as a general-purpose language for this kind of project? Yes, with caveats.**
+
+What worked well
+- The whole engine (HLC, CRDT merge, trait-based storage, replication, simulator, wire format, TCP) is ~900 lines of ordinary-looking, statically-typed code, and ran correctly almost as soon as it compiled. Value semantics and compile-time copy/ownership errors caught real mistakes.
+- Traits plus generics (`Replica[S: Storage]`) gave zero-overhead swappable backends; one fuzz function covers both backends.
+- Tooling: `uv pip install mojo`, `mojo run -I`, built-in `TestSuite`; Python interop made TinyDB and test harness work trivial.
+
+What hurt
+- Ecosystem: no sockets, JSON, SQLite or time helpers in the stdlib; you drop to libc FFI or Python. Fine for a POC, real work for production.
+- Churn: the language moves fast. Pretrained syntax (`fn`, `alias`, `UnsafePointer`, `owned`) is wrong; I relied on the bundled skills. Expect breakage across releases.
+- Ergonomics: pervasive `.copy()` for non-implicitly-copyable types, list-element aliasing rejections (`swap`), and non-obvious trait requirements (`Deinitable`).
+- Diagnostics/tooling nits: GPU-probe `HSA exception` printed on every run; `TestSuite` per-test timings are wrong.
+
+Not evaluated: performance vs. Python/Rust (no benchmark was run), concurrency/threading, memory use, GPU, building a standalone binary distribution, Windows/macOS.
+
+Recommendation: reasonable for CPU-side systems code where you want Python-adjacent ergonomics and static typing, and are willing to track a moving language and write thin FFI shims. For production sync engines today, the missing networking/storage ecosystem is the main blocker.

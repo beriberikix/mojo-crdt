@@ -31,6 +31,10 @@ def check_storage[S: Storage](mut s: S) raises:
     assert_equal(len(s.changes_since(2)), 1)
     assert_equal(len(s.changes_since(3)), 0)
     assert_equal(s.last_seq(), 3)
+    assert_false(Bool(s.get_meta("k")))
+    s.set_meta("k", "v1")
+    s.set_meta("k", "v2")
+    assert_equal(s.get_meta("k").value(), "v2")
 
 
 def test_memory() raises:

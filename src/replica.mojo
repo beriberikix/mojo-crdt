@@ -23,6 +23,17 @@ struct Replica[S: Storage](Movable):
         self.clock = HLCClock(id)
         self.store = store^
 
+    def load_clock(mut self) raises:
+        """Restore the HLC high-water mark so restarts never reuse a stamp."""
+        var saved = self.store.get_meta("hlc")
+        if saved:
+            var parts = saved.value().split(":")
+            self.clock.wall = Int(parts[0])
+            self.clock.counter = Int(parts[1])
+
+    def _save_clock(mut self) raises:
+        self.store.set_meta("hlc", String(self.clock.wall, ":", self.clock.counter))
+
     def local_write(
         mut self, doc_id: String, field: String, value: String, now: Int
     ) raises -> HLC:
@@ -33,6 +44,7 @@ struct Replica[S: Storage](Movable):
         var ts = self.clock.tick(now)
         _ = doc.set(field, value, ts)
         _ = self.store.put(doc)
+        self._save_clock()
         return ts^
 
     def get(self, doc_id: String) raises -> Optional[Doc]:
@@ -69,4 +81,5 @@ struct Replica[S: Storage](Movable):
                 changed += 1
         if len(batch.docs) > 0:
             _ = self.clock.observe(newest, now)
+            self._save_clock()
         return changed
